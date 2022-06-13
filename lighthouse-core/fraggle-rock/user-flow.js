@@ -11,7 +11,6 @@ const {startTimespanGather} = require('./gather/timespan-runner.js');
 const {navigationGather} = require('./gather/navigation-runner.js');
 const Runner = require('../runner.js');
 const {initializeConfig} = require('./config/config.js');
-const ExternalPromise = require('../lib/external-promise.js');
 
 /** @typedef {Parameters<snapshotGather>[0]} FrOptions */
 /** @typedef {Omit<FrOptions, 'page'> & {name?: string}} UserFlowOptions */
@@ -118,17 +117,29 @@ class UserFlow {
   }
 
   /**
+   * This is an alternative to `navigate()` that can be used to analyze a navigation triggered by user interaction.
+   * For more on user triggered navigations, see https://github.com/GoogleChrome/lighthouse/blob/master/docs/user-flows.md#triggering-a-navigation-via-user-interactions.
+   *
    * @param {StepOptions=} stepOptions
    */
   async startNavigation(stepOptions) {
-    /** @type {ExternalPromise<() => void>} */
-    const setupPromise = new ExternalPromise();
+    /** @type {(value: () => void) => void} */
+    let completeSetup;
+    /** @type {(value: any) => void} */
+    let rejectDuringSetup;
+
+    // This promise will resolve once the setup is done
+    // and Lighthouse is waiting for a page navigation to be triggered.
+    const navigationSetupPromise = new Promise((res, rej) => {
+      completeSetup = res;
+      rejectDuringSetup = rej;
+    });
 
     // The promise in this callback will not resolve until `continueNavigation` is invoked,
-    // because its resolve callback `continueNav` is passed along to the external promise
-    // and extracted into `continueNavigation` below.
-    const navigatePromise = this.navigate(
-      () => new Promise(continueNav => setupPromise.resolve(continueNav)),
+    // because `continueNavigation` is passed along to `navigateSetupPromise`
+    // and extracted into `continueAndAwaitResult` below.
+    const navigationResultPromise = this.navigate(
+      () => new Promise(continueNavigation => completeSetup(continueNavigation)),
       stepOptions
     ).catch(err => {
       if (this.currentNavigation) {
@@ -136,24 +147,24 @@ class UserFlow {
         throw err;
       } else {
         // If the navigation has not started, reject the `setupPromise` so the error throws when it is awaited in `startNavigation`.
-        setupPromise.reject(err);
+        rejectDuringSetup(err);
       }
     });
 
-    const continueNavigation = await setupPromise;
+    const continueNavigation = await navigationSetupPromise;
 
-    async function endNavigation() {
+    async function continueAndAwaitResult() {
       continueNavigation();
-      return navigatePromise;
+      await navigationResultPromise;
     }
 
-    this.currentNavigation = {endNavigation};
+    this.currentNavigation = {continueAndAwaitResult};
   }
 
   async endNavigation() {
     if (this.currentTimespan) throw new Error('Timespan already in progress');
     if (!this.currentNavigation) throw new Error('No navigation in progress');
-    await this.currentNavigation.endNavigation();
+    await this.currentNavigation.continueAndAwaitResult();
     this.currentNavigation = undefined;
   }
 
