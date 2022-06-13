@@ -36,11 +36,13 @@ Navigation reports analyze a single page load. Navigation is the most common typ
 
 #### Triggering a navigation via user interactions
 
-Instead of providing a URL to navigate to, you can provide a callback function. This is useful when you want to audit a navigation where the destination is unknown before navigating.
+Instead of providing a URL to navigate to, you can provide a callback function or use the `startNavigation`/`endNavigation` functions. This is useful when you want to audit a navigation where the destination is unknown before navigating.
 
 > Aside: Lighthouse typically clears out any active Service Worker and Cache Storage for the origin under test. However, in this case, as it doesn't know the URL being analyzed, Lighthouse cannot clear this storage. This generally reflects the real user experience, but if you still wish to clear the Service Workers and Cache Storage you must do it manually.
 
-This callback function _must_ perform an action that will trigger a navigation. Any interactions completed before the callback promise resolves will be captured by the navigation.
+If a callback function is used, it _must_ perform an action that will trigger a navigation. Any interactions completed before the callback promise resolves will be captured by the navigation.
+
+If `startNavigation`/`endNavigation` functions are used, an action that triggers a navigation _must_ be executed between the calls to `startNavigation` and `endNavigation`. Any interactions completed before `endNavigation` is invoked will be captured by the navigation.
 
 #### Code
 
@@ -61,6 +63,11 @@ async function main() {
   await flow.navigate(async () => {
     await page.click('a.link');
   });
+
+  // Navigate with startNavigation/endNavigation
+  await flow.startNavigation();
+  await page.click('a.link');
+  await flow.endNavigation();
 
   await browser.close();
 
