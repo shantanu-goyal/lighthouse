@@ -124,7 +124,9 @@ class UserFlow {
     /** @type {ExternalPromise<() => void>} */
     const setupPromise = new ExternalPromise();
 
-    // The promise in this callback will not resolve until `continueNavigation` is invoked.
+    // The promise in this callback will not resolve until `continueNavigation` is invoked,
+    // because its resolve callback `continueNav` is passed along to the external promise
+    // and extracted into `continueNavigation` below.
     const navigatePromise = this.navigate(
       () => new Promise(continueNav => setupPromise.resolve(continueNav)),
       stepOptions
