@@ -99,7 +99,7 @@ class ThirdPartySummary extends Audit {
     }
 
     const jsURLs = getJavaScriptURLs(networkRecords);
-
+    const byJSURL = new Map();
     for (const task of mainThreadTasks) {
       const attributableURL = getAttributableURLForTask(task, jsURLs);
 
@@ -111,10 +111,10 @@ class ThirdPartySummary extends Audit {
       // Note that this is not totally equivalent to the TBT definition since it fails to account for FCP,
       // but a majority of third-party work occurs after FCP and should yield largely similar numbers.
       urlSummary.blockingTime += Math.max(taskDuration - 50, 0);
-      byURL.set(attributableURL, urlSummary);
+      byJSURL.set(attributableURL, urlSummary);
     }
 
-    return { byURL };
+    return { byJSURL };
   }
 
   /**
@@ -182,7 +182,7 @@ class ThirdPartySummary extends Audit {
 
     const summaries = ThirdPartySummary.getSummaries(networkRecords, tasks, multiplier);
 
-    const results = Array.from(summaries.byURL.entries());
+    const results = Array.from(summaries.byJSURL.entries());
 
     if (!results.length) {
       return {

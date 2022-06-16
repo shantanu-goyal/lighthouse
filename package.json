@@ -1,6 +1,6 @@
 {
   "name": "audit-tool",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Automated auditing, performance metrics, and best practices for the web.",
   "main": "./lighthouse-core/index.js",
   "bin": {
